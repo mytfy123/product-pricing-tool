@@ -697,6 +697,29 @@ with tab3:
     st.divider()
     st.subheader("📄 上传文件模板下载")
     
+    st.markdown("**必需文件模板**")
+    
+    internal_template = "名称,商品条码,规格,总销量,销售价,进货价\n可口可乐500ml,6902083888001,500ml,1200,3.5,2.0\n百事可乐500ml,6902083888002,500ml,800,3.5,2.0\n康师傅冰红茶500ml,6902083888003,500ml,1500,3.8,2.2"
+    st.download_button(
+        label="下载 内部数据 模板",
+        data=internal_template,
+        file_name="内部数据模板.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
+    
+    external_template = "商品名,规格,条码,活动价,原价\n可口可乐500毫升,500ml,6902083888001,3.0,3.5\n百事可乐500毫升,500ml,6902083888002,3.2,3.5\n康师傅冰红茶500毫升,500ml,6902083888003,3.5,3.8"
+    st.download_button(
+        label="下载 外部数据 模板",
+        data=external_template,
+        file_name="外部数据模板.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
+    
+    st.markdown("---")
+    st.markdown("**可选配置文件模板**")
+    
     margin_20_template = "条码\n6901234567890\n6901234567891\n6901234567892"
     st.download_button(
         label="下载 线下毛利20%商品 模板",
