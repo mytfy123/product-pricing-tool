@@ -426,6 +426,13 @@ st.sidebar.header("📁 数据文件上传")
 internal_file = st.sidebar.file_uploader("内部数据CSV", type=['csv'], key="internal")
 external_file = st.sidebar.file_uploader("外部数据CSV", type=['csv'], key="external")
 
+st.sidebar.markdown("---")
+st.sidebar.subheader("📦 可选配置文件")
+margin_20_file = st.sidebar.file_uploader("线下毛利20%商品CSV（条码列）", type=['csv'], key="margin20")
+margin_15_file = st.sidebar.file_uploader("线下毛利15%商品CSV（条码列）", type=['csv'], key="margin15")
+promo_file = st.sidebar.file_uploader("固定促销价CSV（条码+固定促销价列）", type=['csv'], key="promo")
+retail_file = st.sidebar.file_uploader("固定零售价CSV（条码+建议零售价列）", type=['csv'], key="retail")
+
 st.sidebar.header("⚙️ 匹配参数")
 similarity = st.sidebar.slider("最低相似度阈值", 20, 80, 40)
 high_similarity = st.sidebar.slider("高相似度阈值", 50, 100, 75)
@@ -554,8 +561,21 @@ with tab1:
                 with st.spinner("🏪 计算线下价格..."):
                     df['线上原价'] = pd.to_numeric(df['线上原价'], errors='coerce')
 
-                    fixed_20_barcodes = set(df[df['内部条码'].isin([bc for bc in df['内部条码'] if str(bc).startswith('20')])]['内部条码'].dropna())
+                    # 读取固定毛利商品条码
+                    fixed_20_barcodes = set()
                     fixed_15_barcodes = set()
+                    
+                    if margin_20_file:
+                        df_margin20 = pd.read_csv(margin_20_file)
+                        if '条码' in df_margin20.columns:
+                            fixed_20_barcodes = set(df_margin20['条码'].astype(str).str.strip().dropna())
+                            st.info(f"已加载固定20%毛利商品：{len(fixed_20_barcodes)} 条")
+                    
+                    if margin_15_file:
+                        df_margin15 = pd.read_csv(margin_15_file)
+                        if '条码' in df_margin15.columns:
+                            fixed_15_barcodes = set(df_margin15['条码'].astype(str).str.strip().dropna())
+                            st.info(f"已加载固定15%毛利商品：{len(fixed_15_barcodes)} 条")
 
                     result = df.apply(lambda row: calculate_offline_price(row, LOW_MARGIN_THRESHOLD, HIGH_MARGIN_THRESHOLD,
                                                                           LOW_MARGIN_RATIO, MID_MARGIN_RATIO, HIGH_MARGIN_RATIO,
@@ -587,6 +607,35 @@ with tab1:
                 with st.spinner("🏷️ 替换固定价格..."):
                     promo_dict = {}
                     retail_dict = {}
+                    
+                    # 读取固定促销价
+                    if promo_file:
+                        df_promo = pd.read_csv(promo_file)
+                        df_promo.columns = df_promo.columns.str.strip()
+                        if '条码' in df_promo.columns and '固定促销价' in df_promo.columns:
+                            for _, r in df_promo.iterrows():
+                                bc = clean_barcode(r['条码'])
+                                if bc:
+                                    try:
+                                        promo_dict[bc] = float(r['固定促销价'])
+                                    except:
+                                        pass
+                            st.info(f"已加载固定促销价：{len(promo_dict)} 条")
+                    
+                    # 读取固定零售价
+                    if retail_file:
+                        df_retail = pd.read_csv(retail_file)
+                        df_retail.columns = df_retail.columns.str.strip()
+                        if '条码' in df_retail.columns and '建议零售价' in df_retail.columns:
+                            for _, r in df_retail.iterrows():
+                                bc = clean_barcode(r['条码'])
+                                if bc:
+                                    try:
+                                        retail_dict[bc] = float(r['建议零售价'])
+                                    except:
+                                        pass
+                            st.info(f"已加载建议零售价：{len(retail_dict)} 条")
+
                     df, replaced = replace_fixed_prices(df, promo_dict, retail_dict)
                     st.session_state.df = df
                     st.session_state.step = 7
@@ -644,5 +693,42 @@ with tab3:
         if '定价类型' in st.session_state.df.columns:
             st.write("定价类型分布:")
             st.write(st.session_state.df['定价类型'].value_counts())
-    else:
-        st.info("暂无数据，请先执行流程")
+    
+    st.divider()
+    st.subheader("📄 上传文件模板下载")
+    
+    margin_20_template = "条码\n6901234567890\n6901234567891\n6901234567892"
+    st.download_button(
+        label="下载 线下毛利20%商品 模板",
+        data=margin_20_template,
+        file_name="线下毛利20%商品模板.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
+    
+    margin_15_template = "条码\n6902234567890\n6902234567891\n6902234567892"
+    st.download_button(
+        label="下载 线下毛利15%商品 模板",
+        data=margin_15_template,
+        file_name="线下毛利15%商品模板.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
+    
+    promo_template = "条码,固定促销价\n6903234567890,19.9\n6903234567891,29.9\n6903234567892,39.9"
+    st.download_button(
+        label="下载 固定促销价 模板",
+        data=promo_template,
+        file_name="固定促销价模板.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
+    
+    retail_template = "条码,建议零售价\n6904234567890,49.9\n6904234567891,59.9\n6904234567892,69.9"
+    st.download_button(
+        label="下载 固定零售价 模板",
+        data=retail_template,
+        file_name="固定零售价模板.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
