@@ -83,14 +83,23 @@ def round_price_by_interval(value):
         return value
     sign = 1 if value >= 0 else -1
     abs_val = abs(value)
-    integer_part = math.floor(abs_val)
-    decimal = abs_val - integer_part
-    if decimal < 0.3:
+    
+    # 先向上取整保留一位小数
+    rounded = math.ceil(abs_val * 10) / 10
+    
+    integer_part = math.floor(rounded)
+    decimal_part = int((rounded - integer_part) * 10)
+    
+    # 根据小数点后一位调整
+    if decimal_part == 0:
+        new_decimal = 0.0
+    elif decimal_part <= 2:
         new_decimal = 0.2
-    elif decimal < 0.6:
+    elif decimal_part <= 5:
         new_decimal = 0.5
     else:
         new_decimal = 0.9
+    
     return sign * (integer_part + new_decimal)
 
 def ceil_to_one_decimal(value):
