@@ -375,9 +375,14 @@ def calculate_miniprogram_price(row, base_multiplier, denom):
     offline_price = row.get('线下价格')
     activity_price = row.get('线上活动价')
     purchase = row.get('进货价')
+    pricing_type = row.get('定价类型', '')
 
     if pd.isna(offline_price) or offline_price <= 0:
         return None
+
+    # 如果是固定毛利商品，小程序价格=线下价格
+    if pricing_type in ["固定毛利20%", "固定毛利15%"]:
+        return offline_price
 
     temp = offline_price * base_multiplier
 
