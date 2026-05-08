@@ -87,8 +87,9 @@ def round_price_by_interval(value):
     # 先向上取整保留一位小数
     rounded = math.ceil(abs_val * 10) / 10
     
+    # 使用round避免浮点数精度问题
     integer_part = math.floor(rounded)
-    decimal_part = int((rounded - integer_part) * 10)
+    decimal_part = round((rounded - integer_part) * 10)
     
     # 根据小数点后一位调整
     if decimal_part == 0:
@@ -343,7 +344,7 @@ def calculate_online_price(row, comp_adjustments, self_coeffs):
             return (online_original, online_activity)
 
 def calculate_offline_price(row, low_thresh, high_thresh, low_ratio, mid_ratio, high_ratio, fixed20, fixed15, fixed_20_barcodes, fixed_15_barcodes):
-    barcode = row['内部条码']
+    barcode = clean_barcode(row['内部条码'])
     purchase = row['进货价']
     online_original = row['线上原价']
 
@@ -404,17 +405,22 @@ def replace_fixed_prices(df, promo_dict, retail_dict):
         bc = row['内部条码']
         if not bc:
             continue
-        if bc in promo_dict:
-            price = promo_dict[bc]
-            df.at[idx, '线下价格'] = ceil_to_one_decimal(price)
-            df.at[idx, '小程序价格'] = ceil_to_one_decimal(price)
-            df.at[idx, '定价类型'] = "固定促销价"
-            replaced_count += 1
-        elif bc in retail_dict:
+        # 跳过已经是固定毛利的商品
+        current_type = row.get('定价类型', '')
+        if current_type in ["固定毛利20%", "固定毛利15%"]:
+            continue
+        # 优先选择建议零售价
+        if bc in retail_dict:
             price = retail_dict[bc]
             df.at[idx, '线下价格'] = ceil_to_one_decimal(price)
             df.at[idx, '小程序价格'] = ceil_to_one_decimal(price)
             df.at[idx, '定价类型'] = "建议零售价"
+            replaced_count += 1
+        elif bc in promo_dict:
+            price = promo_dict[bc]
+            df.at[idx, '线下价格'] = ceil_to_one_decimal(price)
+            df.at[idx, '小程序价格'] = ceil_to_one_decimal(price)
+            df.at[idx, '定价类型'] = "固定促销价"
             replaced_count += 1
 
     return df, replaced_count
