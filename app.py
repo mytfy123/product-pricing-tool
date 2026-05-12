@@ -459,19 +459,29 @@ high_similarity = st.sidebar.slider("高相似度阈值", 50, 100, 75)
 price_range = st.sidebar.slider("价格区间浮动比例", 0.1, 0.5, 0.35, 0.05)
 
 st.sidebar.header("📊 分类参数")
-a_ratio = st.sidebar.slider("A类占比", 0.05, 0.5, 0.2, 0.05)
-b_ratio = st.sidebar.slider("B类占比", 0.3, 0.9, 0.6, 0.05)
+st.sidebar.markdown("**分类规则**")
+st.sidebar.markdown("- A类：销量最高的前N%商品")
+st.sidebar.markdown("- B类：销量次之的中间M%商品")
+st.sidebar.markdown("- C类：销量最低的剩余商品")
+a_ratio = st.sidebar.slider("A类占比", 0.05, 0.5, 0.2, 0.05, help="销量排名前此百分比为A类")
+b_ratio = st.sidebar.slider("B类占比", 0.3, 0.9, 0.6, 0.05, help="A类之后的此百分比为B类，剩余为C类")
 
 st.sidebar.header("💰 竞品价格调整")
+st.sidebar.markdown("**计算公式**")
+st.sidebar.markdown("- 线上原价 = 竞品原价 + 原价调整")
+st.sidebar.markdown("- 线上活动价 = 竞品活动价 + 活动价调整")
 comp_adj = {}
 for cat in ['A', 'B', 'C']:
     st.sidebar.markdown(f"**{cat}类竞品**")
     comp_adj[cat] = {
-        'original': st.sidebar.number_input(f"  {cat}类原价调整", value=0.0, step=0.1, key=f"comp_orig_{cat}"),
-        'activity': st.sidebar.number_input(f"  {cat}类活动价调整", value=0.0, step=0.1, key=f"comp_act_{cat}")
+        'original': st.sidebar.number_input(f"  {cat}类原价调整", value=0.0, step=0.1, key=f"comp_orig_{cat}", help=f"{cat}类商品线上原价额外增减的值"),
+        'activity': st.sidebar.number_input(f"  {cat}类活动价调整", value=0.0, step=0.1, key=f"comp_act_{cat}", help=f"{cat}类商品线上活动价额外增减的值")
     }
 
 st.sidebar.header("🏷️ 自有商品乘数")
+st.sidebar.markdown("**计算公式**")
+st.sidebar.markdown("- 自有商品原价 = 进货价 × 原价乘数")
+st.sidebar.markdown("- 自有商品活动价 = 进货价 × 活动价乘数")
 self_coeff = {}
 for cat in ['A', 'B', 'C']:
     st.sidebar.markdown(f"**{cat}类自有**")
@@ -482,22 +492,35 @@ for cat in ['A', 'B', 'C']:
     else:
         default_orig, default_act = 3.5, 2.5
     self_coeff[cat] = {
-        'original_coeff': st.sidebar.number_input(f"  {cat}类原价乘数", value=default_orig, step=0.1, key=f"self_orig_{cat}"),
-        'activity_coeff': st.sidebar.number_input(f"  {cat}类活动价乘数", value=default_act, step=0.1, key=f"self_act_{cat}")
+        'original_coeff': st.sidebar.number_input(f"  {cat}类原价乘数", value=default_orig, step=0.1, key=f"self_orig_{cat}", help=f"{cat}类自有商品原价 = 进货价 × 此值"),
+        'activity_coeff': st.sidebar.number_input(f"  {cat}类活动价乘数", value=default_act, step=0.1, key=f"self_act_{cat}", help=f"{cat}类自有商品活动价 = 进货价 × 此值")
     }
 
 st.sidebar.header("🏪 线下价格参数")
-LOW_MARGIN_THRESHOLD = st.sidebar.number_input("低毛利阈值", value=0.10, step=0.01)
-HIGH_MARGIN_THRESHOLD = st.sidebar.number_input("高毛利阈值", value=0.65, step=0.01)
-LOW_MARGIN_MULTIPLIER = st.sidebar.number_input("低毛利乘数", value=1.25, step=0.1)
-MID_MARGIN_RATIO = st.sidebar.number_input("中毛利系数", value=0.6, step=0.1)
-HIGH_MARGIN_MULTIPLIER = st.sidebar.number_input("高毛利乘数", value=2.86, step=0.1)
-FIXED_20_MULTIPLIER = st.sidebar.number_input("固定20%毛利乘数", value=1.25, step=0.1)
-FIXED_15_MULTIPLIER = st.sidebar.number_input("固定15%毛利乘数", value=1.18, step=0.1)
+st.sidebar.markdown("**毛利率判断逻辑**")
+st.sidebar.markdown("- 毛利率 = (参考售价 - 进货价) / 参考售价")
+st.sidebar.markdown("- 参考售价 = 线上原价 × 中毛利系数")
+LOW_MARGIN_THRESHOLD = st.sidebar.number_input("低毛利阈值", value=0.10, step=0.01, help="毛利率 ≤ 此值时，使用低毛利乘数")
+HIGH_MARGIN_THRESHOLD = st.sidebar.number_input("高毛利阈值", value=0.65, step=0.01, help="毛利率 ≥ 此值时，使用高毛利乘数")
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("**定价计算公式**")
+LOW_MARGIN_MULTIPLIER = st.sidebar.number_input("低毛利乘数", value=1.25, step=0.1, help="线下价格 = 进货价 × 此值 (毛利率低时)")
+MID_MARGIN_RATIO = st.sidebar.number_input("中毛利系数", value=0.6, step=0.1, help="线下价格 = 线上原价 × 此值 (毛利率中等时)")
+HIGH_MARGIN_MULTIPLIER = st.sidebar.number_input("高毛利乘数", value=2.86, step=0.1, help="线下价格 = 进货价 × 此值 (毛利率高时)")
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("**固定毛利商品**")
+FIXED_20_MULTIPLIER = st.sidebar.number_input("固定20%毛利乘数", value=1.25, step=0.1, help="线下价格 = 进货价 × 1.25 (毛利率≈20%)")
+FIXED_15_MULTIPLIER = st.sidebar.number_input("固定15%毛利乘数", value=1.18, step=0.1, help="线下价格 = 进货价 × 1.18 (毛利率≈15%)")
 
 st.sidebar.header("📱 小程序价格参数")
-BASE_MULTIPLIER = st.sidebar.number_input("基准倍数", value=1.1, step=0.1)
-THRESHOLD_MULTIPLIER = st.sidebar.number_input("阈值乘数", value=1.25, step=0.1)
+st.sidebar.markdown("**计算公式**")
+st.sidebar.markdown("- 固定毛利商品：小程序价格 = 线下价格")
+st.sidebar.markdown("- 其他商品：小程序价格 = 线下价格 × 基准倍数")
+st.sidebar.markdown("- 若活动价低于计算结果，则取活动价（但不低于进货价×阈值乘数）")
+BASE_MULTIPLIER = st.sidebar.number_input("基准倍数", value=1.1, step=0.1, help="线下价格 × 此值 = 基础小程序价格")
+THRESHOLD_MULTIPLIER = st.sidebar.number_input("阈值乘数", value=1.25, step=0.1, help="进货价 × 此值 = 最低保护价")
 
 # 主内容区
 tab1, tab2, tab3 = st.tabs(["🚀 开始流程", "📋 数据预览", "📥 结果下载"])
