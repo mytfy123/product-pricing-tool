@@ -343,7 +343,7 @@ def calculate_online_price(row, comp_adjustments, self_coeffs):
             online_activity = external_activity + adj_activity
             return (online_original, online_activity)
 
-def calculate_offline_price(row, low_thresh, high_thresh, low_ratio, mid_ratio, high_ratio, fixed20, fixed15, fixed_20_barcodes, fixed_15_barcodes):
+def calculate_offline_price(row, low_thresh, high_thresh, low_multiplier, mid_ratio, high_multiplier, fixed20_multiplier, fixed15_multiplier, fixed_20_barcodes, fixed_15_barcodes):
     barcode = clean_barcode(row['内部条码'])
     purchase = row['进货价']
     online_original = row['线上原价']
@@ -352,9 +352,9 @@ def calculate_offline_price(row, low_thresh, high_thresh, low_ratio, mid_ratio, 
         return (None, "无有效进货价")
 
     if barcode in fixed_20_barcodes:
-        return (purchase / fixed20, "固定毛利20%")
+        return (purchase * fixed20_multiplier, "固定毛利20%")
     if barcode in fixed_15_barcodes:
-        return (purchase / fixed15, "固定毛利15%")
+        return (purchase * fixed15_multiplier, "固定毛利15%")
 
     if pd.isna(online_original) or online_original <= 0:
         return (None, "线上原价无效")
@@ -365,13 +365,13 @@ def calculate_offline_price(row, low_thresh, high_thresh, low_ratio, mid_ratio, 
 
     gross_margin = (denominator - purchase) / denominator
     if gross_margin <= low_thresh:
-        return (purchase / low_ratio, "普通商品(低毛利)")
+        return (purchase * low_multiplier, "普通商品(低毛利)")
     elif gross_margin < high_thresh:
         return (online_original * mid_ratio, "普通商品(中毛利)")
     else:
-        return (purchase / high_ratio, "普通商品(高毛利)")
+        return (purchase * high_multiplier, "普通商品(高毛利)")
 
-def calculate_miniprogram_price(row, base_multiplier, denom):
+def calculate_miniprogram_price(row, base_multiplier, threshold_multiplier):
     offline_price = row.get('线下价格')
     activity_price = row.get('线上活动价')
     purchase = row.get('进货价')
@@ -393,7 +393,7 @@ def calculate_miniprogram_price(row, base_multiplier, denom):
         if temp > activity_price:
             if pd.isna(purchase) or purchase <= 0:
                 return temp
-            threshold = purchase / denom
+            threshold = purchase * threshold_multiplier
             if activity_price > threshold:
                 return activity_price
             else:
@@ -489,15 +489,15 @@ for cat in ['A', 'B', 'C']:
 st.sidebar.header("🏪 线下价格参数")
 LOW_MARGIN_THRESHOLD = st.sidebar.number_input("低毛利阈值", value=0.10, step=0.01)
 HIGH_MARGIN_THRESHOLD = st.sidebar.number_input("高毛利阈值", value=0.65, step=0.01)
-LOW_MARGIN_RATIO = st.sidebar.number_input("低毛利分母", value=0.8, step=0.1)
+LOW_MARGIN_MULTIPLIER = st.sidebar.number_input("低毛利乘数", value=1.25, step=0.1)
 MID_MARGIN_RATIO = st.sidebar.number_input("中毛利系数", value=0.6, step=0.1)
-HIGH_MARGIN_RATIO = st.sidebar.number_input("高毛利分母", value=0.35, step=0.1)
-FIXED_20_DENOM = st.sidebar.number_input("固定20%毛利分母", value=0.8, step=0.1)
-FIXED_15_DENOM = st.sidebar.number_input("固定15%毛利分母", value=0.85, step=0.1)
+HIGH_MARGIN_MULTIPLIER = st.sidebar.number_input("高毛利乘数", value=2.86, step=0.1)
+FIXED_20_MULTIPLIER = st.sidebar.number_input("固定20%毛利乘数", value=1.25, step=0.1)
+FIXED_15_MULTIPLIER = st.sidebar.number_input("固定15%毛利乘数", value=1.18, step=0.1)
 
 st.sidebar.header("📱 小程序价格参数")
 BASE_MULTIPLIER = st.sidebar.number_input("基准倍数", value=1.1, step=0.1)
-DENOM_THRESHOLD = st.sidebar.number_input("分母阈值", value=0.8, step=0.1)
+THRESHOLD_MULTIPLIER = st.sidebar.number_input("阈值乘数", value=1.25, step=0.1)
 
 # 主内容区
 tab1, tab2, tab3 = st.tabs(["🚀 开始流程", "📋 数据预览", "📥 结果下载"])
@@ -598,8 +598,8 @@ with tab1:
                             st.info(f"已加载固定15%毛利商品：{len(fixed_15_barcodes)} 条")
 
                     result = df.apply(lambda row: calculate_offline_price(row, LOW_MARGIN_THRESHOLD, HIGH_MARGIN_THRESHOLD,
-                                                                          LOW_MARGIN_RATIO, MID_MARGIN_RATIO, HIGH_MARGIN_RATIO,
-                                                                          FIXED_20_DENOM, FIXED_15_DENOM,
+                                                                          LOW_MARGIN_MULTIPLIER, MID_MARGIN_RATIO, HIGH_MARGIN_MULTIPLIER,
+                                                                          FIXED_20_MULTIPLIER, FIXED_15_MULTIPLIER,
                                                                           fixed_20_barcodes, fixed_15_barcodes), axis=1)
                     df['线下价格'] = result.apply(lambda x: round_price_by_interval(x[0]) if x[0] is not None else None)
                     df['定价类型'] = result.apply(lambda x: x[1])
@@ -614,7 +614,7 @@ with tab1:
 
                 # Step 6: 计算小程序价格
                 with st.spinner("📱 计算小程序价格..."):
-                    df['小程序价格'] = df.apply(lambda row: calculate_miniprogram_price(row, BASE_MULTIPLIER, DENOM_THRESHOLD), axis=1)
+                    df['小程序价格'] = df.apply(lambda row: calculate_miniprogram_price(row, BASE_MULTIPLIER, THRESHOLD_MULTIPLIER), axis=1)
                     df['小程序价格'] = df['小程序价格'].apply(round_price_by_interval)
                     st.session_state.df = df
                     st.session_state.step = 6
